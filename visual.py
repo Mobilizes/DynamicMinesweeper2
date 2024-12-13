@@ -1,7 +1,7 @@
 import pygame as p
 p.font.init()
 
-path = ''    # This should contain the path of where the game folder is
+path = 'DynamicMinesweeper2/'    # This should contain the path of where the game folder is
 Icon = p.image.load(path+'images/bombicon.png')
 p.display.set_icon(Icon)
 mine = p.image.load(path+'images/mine.png')

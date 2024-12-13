@@ -5,6 +5,9 @@ import itertools
 from math import comb
 from operator import mul
 from functools import reduce
+import time
+import pygame as p
+from visual import *
 
 # Generates a random mine board for the game
 def genBoard(h, w, nb):
@@ -60,8 +63,58 @@ def squareNum(coords, board):
 
 # In minesweeper, when the player clicks a square with number 0, all surrouding squares are cleared automatically
 # This function does that.
-def cleanboard(knownBoard,gameBoard,seen):
-    # count is the number of squares of number 0 whose surroundings haven't been cleared yet
+import pygame as p
+
+def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
+    """
+    Automatically clears the safest square(s) based on probabilities.
+    Handles backtracking if a bomb is hit and cleanly stops if no safe moves are left.
+    """
+    clock = p.time.Clock()  # Pygame clock to control frame rate
+    FPS = 60  # Number of updates per second
+
+    while True:
+        # Calculate probabilities for all squares
+        probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+        min_prob = 1.1  # Start with a probability above any valid value
+        min_square = None  # Coordinates of the square with the lowest probability
+
+        # Search for the safest square
+        for y, row in enumerate(probsBoard):
+            for x, prob in enumerate(row):
+                if knownBoard[y][x] is None and prob is not None and prob < min_prob:
+                    min_prob = prob
+                    min_square = (y, x)
+
+        # If a safe square is found
+        if min_square:
+            y, x = min_square
+            print(f"Choosing square {min_square} with probability {min_prob:.2f}")
+            
+            if min_prob == 1.0:  # Mark definite mine
+                knownBoard[y][x] = "🚩"
+            else:  # Reveal square
+                if gameBoard[y][x] == 1:  # Bomb hit
+                    print(f"Hit a mine at {min_square}. Backtracking...")
+                    knownBoard[y][x] = "🚩"  # Flag as mine
+                else:  # Safe square
+                    knownBoard[y][x] = squareNum((y, x), gameBoard)
+                    checkopencluster(knownBoard, gameBoard, seen)  # Reveal surrounding zeros
+            
+            # Update the display
+            if screen:
+                drawBoard(screen, knownBoard, gameBoard, probsBoard, SQ_SIZE, False, True)
+                p.display.flip()
+                clock.tick(10)  # Control delay with clock (10 FPS for smooth animation)
+        else:
+            # No safe moves are left
+            print("No safe moves left. Exiting autoclear.")
+            break
+
+
+    # count is the number of squares of number 0 whose surroundings haven't been cleared ye
+
+def checkopencluster(knownBoard,gameBoard,seen):
     count = None
     while count != 0:
         count = 0
