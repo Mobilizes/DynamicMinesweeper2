@@ -23,6 +23,8 @@ while True:
     clock.tick(MAX_FPS)
     p.display.flip()
     for e in p.event.get():
+        if e.type == p.QUIT:
+            p.quit()
         if e.type == p.KEYDOWN:
             if e.key == p.K_c and display:
                 for y, row in enumerate(probsBoard):
