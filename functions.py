@@ -7,7 +7,7 @@ from operator import mul
 from functools import reduce
 import pygame as p
 from visual import *
-
+import time
 
 # Generates a random mine board for the game
 def genBoard(h, w, nb):
