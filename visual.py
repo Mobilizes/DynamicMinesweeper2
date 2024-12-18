@@ -1,7 +1,7 @@
 import pygame as p
 p.font.init()
 
-path = 'DynamicMinesweeper2/'    # This should contain the path of where the game folder is
+path = 'DynamicMinesweeper2/'
 Icon = p.image.load(path+'images/bombicon.png')
 p.display.set_icon(Icon)
 mine = p.image.load(path+'images/mine.png')
@@ -35,19 +35,30 @@ def blittext(screen,text,font,r,c,SQ_SIZE):
     screen.blit(label,
                 p.Rect((c + 1 / 2) * SQ_SIZE - tWidth / 2, (r + 1 / 2) * SQ_SIZE - tHeight / 2, SQ_SIZE//3, SQ_SIZE//3))
 
-def drawBoard(screen,board,mineboard,probboard,SQ_SIZE,status,display):
+def drawBoard(screen, board, mineboard, probboard, SQ_SIZE, status, display):
+    # Collect all known squares (non-None) to determine 3x3 areas
+    known_squares = [(r, c) for r, row in enumerate(board) for c, val in enumerate(row) if val not in (None, '🚩')]
+
+    def in_3x3_around_known(r, c):
+        for kr, kc in known_squares:
+            if abs(kr - r) <= 1 and abs(kc - c) <= 1:  # Check if within a 3x3 area
+                return True
+        return False
+
     for r in range(dimension(board)):
         for c in range(dimensionx(board)):
             val = board[r][c]
             if val == None:
-                if status and mineboard[r][c]==1:
-                    blitimage(screen,mine,r,c,SQ_SIZE,1,1)
+                if status and mineboard[r][c] == 1:
+                    blitimage(screen, mine, r, c, SQ_SIZE, 1, 1)
                 else:
                     blitimage(screen, notpressed, r, c, SQ_SIZE, 1, 1)
-                    if display and probboard[r][c] != None:
-                        blittext(screen,str(round(probboard[r][c]*100)),p.font.SysFont('Times New Roman',10),r,c,SQ_SIZE)
+                    if display and probboard[r][c] is not None and in_3x3_around_known(r, c):
+                        # Display probabilities only in 3x3 areas
+                        blittext(screen, str(round(probboard[r][c] * 100)), p.font.SysFont('Times New Roman', 10), r, c, SQ_SIZE)
             elif type(val) == int:
-                blitimage(screen, numbers[val], r, c, SQ_SIZE,1,1)
+                blitimage(screen, numbers[val], r, c, SQ_SIZE, 1, 1)
             elif val == '🚩':
-                blitimage(screen,flag,r,c,SQ_SIZE,1,1)
+                blitimage(screen, flag, r, c, SQ_SIZE, 1, 1)
+
     pass

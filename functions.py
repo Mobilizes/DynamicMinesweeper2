@@ -66,23 +66,33 @@ def squareNum(coords, board):
 import pygame as p
 
 def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
-    """
-    Automatically clears the safest square(s) based on probabilities.
-    Handles backtracking if a bomb is hit and cleanly stops if no safe moves are left.
-    """
     clock = p.time.Clock()  # Pygame clock to control frame rate
-    FPS = 60  # Number of updates per second
+    FPS = 30  # Control the frame rate for smoother execution
+
+    def in_3x3_around_known(y, x):
+        """Check if a square (y, x) is in a 3x3 region around any revealed square."""
+        for ky, row in enumerate(knownBoard):
+            for kx, cell in enumerate(row):
+                if isinstance(cell, int) and abs(ky - y) <= 1 and abs(kx - x) <= 1:
+                    return True
+        return False
+
+    # Cache probabilities to avoid recalculating everything
+    probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
 
     while True:
-        # Calculate probabilities for all squares
-        probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
         min_prob = 1.1  # Start with a probability above any valid value
         min_square = None  # Coordinates of the square with the lowest probability
 
-        # Search for the safest square
+        # Search for the safest square only in 3x3 areas around known squares
         for y, row in enumerate(probsBoard):
             for x, prob in enumerate(row):
-                if knownBoard[y][x] is None and prob is not None and prob < min_prob:
+                if (
+                    knownBoard[y][x] is None  # Unrevealed square
+                    and prob is not None      # Has a probability value
+                    and prob < min_prob       # Minimum probability
+                    and in_3x3_around_known(y, x)  # In 3x3 area around known squares
+                ):
                     min_prob = prob
                     min_square = (y, x)
 
@@ -90,29 +100,31 @@ def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
         if min_square:
             y, x = min_square
             print(f"Choosing square {min_square} with probability {min_prob:.2f}")
-            
+
             if min_prob == 1.0:  # Mark definite mine
                 knownBoard[y][x] = "🚩"
             else:  # Reveal square
                 if gameBoard[y][x] == 1:  # Bomb hit
-                    print(f"Hit a mine at {min_square}. Backtracking...")
-                    knownBoard[y][x] = "🚩"  # Flag as mine
+                    print(f"Hit a mine at {min_square}. Flagging as mine.")
+                    knownBoard[y][x] = "🚩"
                 else:  # Safe square
                     knownBoard[y][x] = squareNum((y, x), gameBoard)
                     checkopencluster(knownBoard, gameBoard, seen)  # Reveal surrounding zeros
-            
-            # Update the display
+                
+                # Update probabilities only in affected regions
+                probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+
+            # Update the display less frequently
             if screen:
                 drawBoard(screen, knownBoard, gameBoard, probsBoard, SQ_SIZE, False, True)
                 p.display.flip()
-                clock.tick(10)  # Control delay with clock (10 FPS for smooth animation)
+                clock.tick(FPS)
         else:
             # No safe moves are left
-            print("No safe moves left. Exiting autoclear.")
+            print("No safe moves left in the 3x3 areas. Exiting autoclear.")
             break
 
 
-    # count is the number of squares of number 0 whose surroundings haven't been cleared ye
 
 def checkopencluster(knownBoard,gameBoard,seen):
     count = None
@@ -303,9 +315,13 @@ def calcprobs(board,rem_mines):
                 break
             eq_groups_num.append(num)
 
-        # Sorts the border_sqrs and solution lists such that the first part correponds to the first group, the 2nd to the 2nd and so on
-        border_sqrs = [x for _, x in sorted(zip(eq_groups_num, border_sqrs), key=lambda pair: pair[0])]
-        solution = [x for _, x in sorted(zip(eq_groups_num, solution), key=lambda pair: pair[0])]
+        # Filter out None values before sorting
+        filtered_pairs = [(group, sqr) for group, sqr in zip(eq_groups_num, border_sqrs) if group is not None]
+        filtered_solution = [sol for group, sol in zip(eq_groups_num, solution) if group is not None]
+
+        # Sort the filtered pairs and corresponding solution
+        border_sqrs = [x for _, x in sorted(filtered_pairs, key=lambda pair: pair[0])]
+        solution = [sol for _, sol in sorted(zip(eq_groups_num, filtered_solution), key=lambda pair: pair[0])]
 
         groups = groups + [[]] # Adds an additional group that contains the parameters for the expressions that only have constants, which is an empty group
         alleq_groups = []  # Contains every possible solution for each group
