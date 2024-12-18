@@ -168,25 +168,33 @@ def checkopencluster(knownBoard,gameBoard,seen):
 
 
 def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
-    """
-    Automatically clears the safest square(s) based on probabilities.
-    Handles backtracking if a bomb is hit and cleanly stops if no safe moves are left.
-    """
     clock = p.time.Clock()  # Pygame clock to control frame rate
-    FPS = 60  # Number of updates per second
+    FPS = 30  # Control the frame rate for smoother execution
+
+    def in_3x3_around_known(y, x):
+        """Check if a square (y, x) is in a 3x3 region around any revealed square."""
+        for ky, row in enumerate(knownBoard):
+            for kx, cell in enumerate(row):
+                if isinstance(cell, int) and abs(ky - y) <= 1 and abs(kx - x) <= 1:
+                    return True
+        return False
+
+    # Cache probabilities to avoid recalculating everything
+    probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
 
     while True:
-        # Calculate probabilities for all squares
-        probsBoard = calcprobs(
-            knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard)
-        )
         min_prob = 1.1  # Start with a probability above any valid value
         min_square = None  # Coordinates of the square with the lowest probability
 
-        # Search for the safest square
+        # Search for the safest square only in 3x3 areas around known squares
         for y, row in enumerate(probsBoard):
             for x, prob in enumerate(row):
-                if knownBoard[y][x] is None and prob is not None and prob < min_prob:
+                if (
+                    knownBoard[y][x] is None  # Unrevealed square
+                    and prob is not None      # Has a probability value
+                    and prob < min_prob       # Minimum probability
+                    and in_3x3_around_known(y, x)  # In 3x3 area around known squares
+                ):
                     min_prob = prob
                     min_square = (y, x)
 
@@ -199,25 +207,25 @@ def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
                 knownBoard[y][x] = "🚩"
             else:  # Reveal square
                 if gameBoard[y][x] == 1:  # Bomb hit
-                    print(f"Hit a mine at {min_square}. Backtracking...")
-                    knownBoard[y][x] = "🚩"  # Flag as mine
+                    print(f"Hit a mine at {min_square}. Flagging as mine.")
+                    knownBoard[y][x] = "🚩"
                 else:  # Safe square
                     knownBoard[y][x] = squareNum((y, x), gameBoard)
-                    checkopencluster(
-                        knownBoard, gameBoard, seen
-                    )  # Reveal surrounding zeros
+                    checkopencluster(knownBoard, gameBoard, seen)  # Reveal surrounding zeros
+                
+                # Update probabilities only in affected regions
+                probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
 
-            # Update the display
+            # Update the display less frequently
             if screen:
-                drawBoard(
-                    screen, knownBoard, gameBoard, probsBoard, SQ_SIZE, False, True
-                )
+                drawBoard(screen, knownBoard, gameBoard, probsBoard, SQ_SIZE, False, True)
                 p.display.flip()
-                clock.tick(10)  # Control delay with clock (10 FPS for smooth animation)
+                clock.tick(FPS)
         else:
             # No safe moves are left
-            print("No safe moves left. Exiting autoclear.")
+            print("No safe moves left in the 3x3 areas. Exiting autoclear.")
             break
+
 
 
 # Generates all combinations of a list l of symbols with length n
