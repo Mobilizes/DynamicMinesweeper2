@@ -3,6 +3,7 @@ from visual import *
 import pygame as p
 import sys
 
+<<<<<<< HEAD
 # Function to display a settings menu and gather user input
 def settings_menu():
     p.init()
@@ -20,6 +21,26 @@ def settings_menu():
     active = [False] * len(input_boxes)
     active[current_box] = True
 
+=======
+
+# Function to display a settings menu and gather user input
+def settings_menu():
+    p.init()
+    screen = p.display.set_mode((400, 300))
+    p.display.set_caption("Minesweeper Configuration")
+
+    font = p.font.Font(None, 32)
+    input_boxes = [
+        {"label": "Height", "value": "16", "rect": p.Rect(100, 50, 200, 32)},
+        {"label": "Width", "value": "16", "rect": p.Rect(100, 100, 200, 32)},
+        {"label": "Mines", "value": "40", "rect": p.Rect(100, 150, 200, 32)},
+    ]
+
+    current_box = 0
+    active = [False] * len(input_boxes)
+    active[current_box] = True
+
+>>>>>>> 539428c9b606249aecafc43ca0bea9f95e6df007
     clock = p.time.Clock()
     while True:
         screen.fill((200, 200, 200))  # Background color
@@ -35,7 +56,13 @@ def settings_menu():
                     current_box = (current_box + 1) % len(input_boxes)
                     active[current_box] = True
                 elif event.key == p.K_BACKSPACE:
+<<<<<<< HEAD
                     input_boxes[current_box]["value"] = input_boxes[current_box]["value"][:-1]
+=======
+                    input_boxes[current_box]["value"] = input_boxes[current_box][
+                        "value"
+                    ][:-1]
+>>>>>>> 539428c9b606249aecafc43ca0bea9f95e6df007
                 else:
                     input_boxes[current_box]["value"] += event.unicode
             elif event.type == p.MOUSEBUTTONDOWN:
@@ -77,7 +104,13 @@ def settings_menu():
                 if not (1 <= height <= 100 and 1 <= width <= 100):
                     error_message = "Height/Width must be between 1 and 100!"
                 elif not (min_bombs <= mines <= max_bombs):
+<<<<<<< HEAD
                     error_message = f"Mines must be between {min_bombs} and {max_bombs}!"
+=======
+                    error_message = (
+                        f"Mines must be between {min_bombs} and {max_bombs}!"
+                    )
+>>>>>>> 539428c9b606249aecafc43ca0bea9f95e6df007
                 else:
                     return height, width, mines  # Valid input, start the game
             except ValueError:
@@ -91,6 +124,10 @@ def settings_menu():
         p.display.flip()
         clock.tick(30)
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 539428c9b606249aecafc43ca0bea9f95e6df007
 # Main program
 if __name__ == "__main__":
     p.init()
@@ -127,7 +164,10 @@ if __name__ == "__main__":
                     autoclear(knownBoard, gameBoard, seen, num_mines, screen, SQ_SIZE)
                     display = True  # Ensure probabilities are updated
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 539428c9b606249aecafc43ca0bea9f95e6df007
                 if e.type == p.MOUSEBUTTONDOWN and not lost:
                     location = p.mouse.get_pos()
                     col = location[0] // SQ_SIZE
@@ -136,9 +176,23 @@ if __name__ == "__main__":
                     if e.button == 1:  # Left click
                         if gameBoard[row][col] == 1:  # Mine clicked
                             print("It was a mine! Game Over!")
+<<<<<<< HEAD
                             drawBoard(screen, knownBoard, gameBoard, probsBoard, SQ_SIZE, True, display)
                             p.display.flip()
                             time.sleep(2) 
+=======
+                            drawBoard(
+                                screen,
+                                knownBoard,
+                                gameBoard,
+                                probsBoard,
+                                SQ_SIZE,
+                                True,
+                                display,
+                            )
+                            p.display.flip()
+                            time.sleep(2)
+>>>>>>> 539428c9b606249aecafc43ca0bea9f95e6df007
                             lost = True  # Exit the game loop
                         else:  # Safe square
                             knownBoard[row][col] = squareNum((row, col), gameBoard)
@@ -153,4 +207,8 @@ if __name__ == "__main__":
                             num_flags -= 1
 
                     probsBoard = calcprobs(knownBoard, num_mines - num_flags)
+<<<<<<< HEAD
                     display = True
+=======
+                    display = True
+>>>>>>> 539428c9b606249aecafc43ca0bea9f95e6df007
