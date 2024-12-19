@@ -8,24 +8,6 @@ import time
 def settings_menu():
     p.init()
     screen = p.display.set_mode((400, 300))
-    p.display.set_caption("Minesweeper Configuration")
-
-    font = p.font.Font(None, 32)
-    input_boxes = [
-        {"label": "Height", "value": "16", "rect": p.Rect(100, 50, 200, 32)},
-        {"label": "Width", "value": "16", "rect": p.Rect(100, 100, 200, 32)},
-        {"label": "Mines", "value": "40", "rect": p.Rect(100, 150, 200, 32)},
-    ]
-
-    current_box = 0
-    active = [False] * len(input_boxes)
-    active[current_box] = True
-
-
-# Function to display a settings menu and gather user input
-def settings_menu():
-    p.init()
-    screen = p.display.set_mode((400, 300))
     p.display.set_caption("Minesweeper")
 
     font = p.font.Font(None, 32)

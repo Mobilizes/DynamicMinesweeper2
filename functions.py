@@ -7,7 +7,8 @@ from operator import mul
 from functools import reduce
 import pygame as p
 from visual import *
-import time
+from itertools import product
+
 
 # Generates a random mine board for the game
 def genBoard(h, w, nb):
@@ -83,10 +84,9 @@ def squareNum(coords, board):
 
 # In minesweeper, when the player clicks a square with number 0, all surrouding squares are cleared automatically
 # This function does that.
-import pygame as p
 
 def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
-    clock = p.time.Clock()  # Pygame clock to control frame rate
+    clock = p.time.Clock()
     FPS = 30  # Control the frame rate for smoother execution
 
     def in_3x3_around_known(y, x):
@@ -97,52 +97,80 @@ def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
                     return True
         return False
 
-    # Cache probabilities to avoid recalculating everything
-    probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
-
-    while True:
-        min_prob = 1.1  # Start with a probability above any valid value
-        min_square = None  # Coordinates of the square with the lowest probability
-
-        # Search for the safest square only in 3x3 areas around known squares
+    def get_safest_square(probsBoard):
+        """Find the square with the smallest probability in the 3x3 area around revealed cells."""
+        min_prob = 1.1
+        min_square = None
         for y, row in enumerate(probsBoard):
             for x, prob in enumerate(row):
                 if (
-                    knownBoard[y][x] is None  # Unrevealed square
-                    and prob is not None      # Has a probability value
-                    and prob < min_prob       # Minimum probability
-                    and in_3x3_around_known(y, x)  # In 3x3 area around known squares
+                    knownBoard[y][x] is None
+                    and prob is not None
+                    and prob < min_prob
+                    and in_3x3_around_known(y, x)
                 ):
                     min_prob = prob
                     min_square = (y, x)
+        return min_square, min_prob
 
-        # If a safe square is found
+    def overlay_probs(probsBoard, probsBoard2, definite_bombs):
+        """Overlay probabilities, prioritizing calcprobs results."""
+        for y, row in enumerate(probsBoard):
+            for x, prob in enumerate(row):
+                if (y, x) in definite_bombs:
+                    probsBoard[y][x] = 1.0
+                elif prob is not None and probsBoard2[y][x] is not None:
+                    probsBoard[y][x] = max(prob, probsBoard2[y][x])
+                elif probsBoard2[y][x] is not None:
+                    probsBoard[y][x] = probsBoard2[y][x]
+        return probsBoard
+
+    # Initialization
+    probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+    definite_bombs = {(y, x) for y, row in enumerate(probsBoard) for x, val in enumerate(row) if val == 1.0}
+    backtrack = 0  # Counter for backtracks
+
+    while True:
+        min_square, min_prob = get_safest_square(probsBoard)
+
         if min_square:
             y, x = min_square
             print(f"Choosing square {min_square} with probability {min_prob:.2f}")
 
-            if min_prob == 1.0:  # Mark definite mine
+            if min_prob == 1.0:  # Definite mine
                 knownBoard[y][x] = "🚩"
-            else:  # Reveal square
-                if gameBoard[y][x] == 1:  # Bomb hit
-                    print(f"Hit a mine at {min_square}. Flagging as mine.")
+                definite_bombs.add((y, x))  # Add to definite bomb set
+            else:
+                if gameBoard[y][x] == 1:  # Backtrack condition
+                    print(f"Backtrack at {min_square}")
+                    backtrack += 1
                     knownBoard[y][x] = "🚩"
+
+                    # Recalculate probabilities TWICE for accuracy
+                    probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+                    probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+                    definite_bombs = {(y, x) for y, row in enumerate(probsBoard) for x, val in enumerate(row) if val == 1.0}
+
                 else:  # Safe square
                     knownBoard[y][x] = squareNum((y, x), gameBoard)
-                    checkopencluster(knownBoard, gameBoard, seen)  # Reveal surrounding zeros
-                
-                # Update probabilities only in affected regions
-                probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+                    checkopencluster(knownBoard, gameBoard, seen)
 
-            # Update the display less frequently
+                    # Combine calcprobs and calcprobs2 for efficiency
+                    probsBoard2 = calcprobs2(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+                    probsBoard = overlay_probs(probsBoard, probsBoard2, definite_bombs)
+
+            # Update the display
             if screen:
                 drawBoard(screen, knownBoard, gameBoard, probsBoard, SQ_SIZE, False, True)
                 p.display.flip()
                 clock.tick(FPS)
         else:
-            # No safe moves are left
-            print("No safe moves left in the 3x3 areas. Exiting autoclear.")
+            print("No safe moves left. Exiting autoclear.\n")
+            print(f"Total backtracks = {backtrack}")
             break
+
+
+
 
 
 
@@ -165,67 +193,6 @@ def checkopencluster(knownBoard,gameBoard,seen):
                     seen.append((y, x))
         for sqr in zerosqrs:
             knownBoard[sqr[0]][sqr[1]] = 0
-
-
-def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
-    clock = p.time.Clock()  # Pygame clock to control frame rate
-    FPS = 30  # Control the frame rate for smoother execution
-
-    def in_3x3_around_known(y, x):
-        """Check if a square (y, x) is in a 3x3 region around any revealed square."""
-        for ky, row in enumerate(knownBoard):
-            for kx, cell in enumerate(row):
-                if isinstance(cell, int) and abs(ky - y) <= 1 and abs(kx - x) <= 1:
-                    return True
-        return False
-
-    # Cache probabilities to avoid recalculating everything
-    probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
-
-    while True:
-        min_prob = 1.1  # Start with a probability above any valid value
-        min_square = None  # Coordinates of the square with the lowest probability
-
-        # Search for the safest square only in 3x3 areas around known squares
-        for y, row in enumerate(probsBoard):
-            for x, prob in enumerate(row):
-                if (
-                    knownBoard[y][x] is None  # Unrevealed square
-                    and prob is not None      # Has a probability value
-                    and prob < min_prob       # Minimum probability
-                    and in_3x3_around_known(y, x)  # In 3x3 area around known squares
-                ):
-                    min_prob = prob
-                    min_square = (y, x)
-
-        # If a safe square is found
-        if min_square:
-            y, x = min_square
-            print(f"Choosing square {min_square} with probability {min_prob:.2f}")
-
-            if min_prob == 1.0:  # Mark definite mine
-                knownBoard[y][x] = "🚩"
-            else:  # Reveal square
-                if gameBoard[y][x] == 1:  # Bomb hit
-                    print(f"Hit a mine at {min_square}. Flagging as mine.")
-                    knownBoard[y][x] = "🚩"
-                else:  # Safe square
-                    knownBoard[y][x] = squareNum((y, x), gameBoard)
-                    checkopencluster(knownBoard, gameBoard, seen)  # Reveal surrounding zeros
-                
-                # Update probabilities only in affected regions
-                probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
-
-            # Update the display less frequently
-            if screen:
-                drawBoard(screen, knownBoard, gameBoard, probsBoard, SQ_SIZE, False, True)
-                p.display.flip()
-                clock.tick(FPS)
-        else:
-            # No safe moves are left
-            print("No safe moves left in the 3x3 areas. Exiting autoclear.")
-            break
-
 
 
 # Generates all combinations of a list l of symbols with length n
@@ -406,8 +373,12 @@ def calcprobs(board, rem_mines):
         symbolstr = symbolstr[:-2]
         variables = sympy.symbols(symbolstr)
 
-        # Solves the system
-        solution = sympy.linsolve(sympy.Matrix(equation_matrix), variables).args[0]
+        # Solve the system
+        linsolve_result = sympy.linsolve(sympy.Matrix(equation_matrix), variables)
+
+
+        solution = linsolve_result.args[0]  # Extract the first solution tuple
+
 
         # Determines what are the parameters of the solution
         parameters = []
@@ -515,14 +486,19 @@ def calcprobs(board, rem_mines):
                     for i, x in enumerate(result):
                         problist[i] += x * numberOfPossibilities[val]
 
-            problist = [x / total for x in problist]
+            # Normalize probabilities after solving
+            if total > 0:
+                problist = [x / total for x in problist]  # Normalize probabilities
+            else:
+                problist = [0] * len(problist)  # No valid states
             if len(unbordered_sqrs) > 0:
                 unbordered_prob /= num_possibilities * len(unbordered_sqrs)
-            # Substitutes each found probability to the probability board
+
+            # Assign probabilities to newboard
             for i, sqr in enumerate(border_sqrs):
                 newboard[sqr[0]][sqr[1]] = problist[i]
             for i, sqr in enumerate(unbordered_sqrs):
-                newboard[sqr[0]][sqr[1]] = unbordered_prob
+                newboard[sqr[0]][sqr[1]] = rem_mines / len(unbordered_sqrs)  # Uniform probability
         else:
             # In case there were too many parameters, at least some squares are definitely mines because the
             # solution of the linear system gave that they are constants 1 or 0
@@ -536,4 +512,83 @@ def calcprobs(board, rem_mines):
             )
     else:
         print("The linear system method wasn't needed")
+    return newboard
+
+
+def calcprobs2(board, rem_mines):
+    newboard = genKnownBoard(len(board), len(board[0]))  # Initialize probability board with None
+    prev = None
+
+    # Identify revealed cells to limit the scope of calculation
+    revealed_cells = [
+        (y, x) for y, row in enumerate(board) for x, cell in enumerate(row) if isinstance(cell, int)
+    ]
+    
+    # Focus only on cells surrounding the revealed cells
+    def get_surrounding_revealed():
+        focus_cells = set()
+        for y, x in revealed_cells:
+            for ny, nx in surrounds((y, x), board):
+                if board[ny][nx] is None:  # Only consider unknown cells
+                    focus_cells.add((ny, nx))
+        return list(focus_cells)
+
+    while prev != newboard:
+        prev = deepcopy(newboard)
+        focus_cells = get_surrounding_revealed()
+        
+        for y, x in focus_cells:  # Iterate only over the cells of interest
+            for ry, rx in surrounds((y, x), board):
+                cell = board[ry][rx]
+                if isinstance(cell, int) and cell > 0:
+                    sur_sqrs = surrounds((ry, rx), board)
+                    none_sqrs = [
+                        s for s in sur_sqrs if board[s[0]][s[1]] is None or board[s[0]][s[1]] == "🚩"
+                    ]
+                    sqrs100 = [
+                        s for s in none_sqrs if newboard[s[0]][s[1]] == 1.0 or board[s[0]][s[1]] == "🚩"
+                    ]
+                    sqrs0 = [s for s in none_sqrs if newboard[s[0]][s[1]] == 0.0]
+
+                    # Apply basic rules for definite mines or safe squares
+                    if len(none_sqrs) == cell:
+                        for sqr in none_sqrs:
+                            newboard[sqr[0]][sqr[1]] = 1.0
+                    elif len(sqrs100) == cell:
+                        for sqr in [s for s in sur_sqrs if s not in sqrs100]:
+                            newboard[sqr[0]][sqr[1]] = 0.0
+                    elif len(none_sqrs) - len(sqrs0) == cell:
+                        for sqr in [s for s in none_sqrs if s not in sqrs0]:
+                            newboard[sqr[0]][sqr[1]] = 1.0
+
+                    # Calculate probabilities for uncertain squares
+                    else:
+                        mines_left = cell - len(sqrs100)  # Mines yet to be placed
+                        if mines_left > 0 and len(none_sqrs) > 0:
+                            prob = mines_left / len(none_sqrs)
+                            for sqr in none_sqrs:
+                                if newboard[sqr[0]][sqr[1]] is None:  # Update only unset probabilities
+                                    newboard[sqr[0]][sqr[1]] = prob
+                                else:
+                                    # Average probability for overlapping regions
+                                    newboard[sqr[0]][sqr[1]] = (
+                                        newboard[sqr[0]][sqr[1]] + prob
+                                    ) / 2
+
+    # Normalize probabilities if needed
+    total_prob = sum(
+        newboard[y][x]
+        for y, row in enumerate(newboard)
+        for x, cell in enumerate(row)
+        if isinstance(cell, float) and newboard[y][x] != 1.0  # Exclude definite bombs
+    )
+
+    if total_prob > rem_mines:  # Normalize probabilities to match remaining mines
+        scale_factor = rem_mines / total_prob
+        for y, row in enumerate(newboard):
+            for x, cell in enumerate(row):
+                if isinstance(cell, float) and newboard[y][x] != 1.0:  # Do not modify 1.0
+                    newboard[y][x] = round(min(1.0, newboard[y][x] * scale_factor), 2)
+
+
     return newboard
