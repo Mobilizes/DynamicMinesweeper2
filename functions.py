@@ -1,4 +1,4 @@
-from random import choice
+from random import choice, shuffle
 from copy import deepcopy
 import sympy
 import itertools
@@ -82,8 +82,36 @@ def squareNum(coords, board):
     return bombcount
 
 
+def randomizeBoard(knownBoard, gameBoard, seen, num_mines):
+    new_known_board = genKnownBoard(len(knownBoard), len(knownBoard[0]))
+    new_game_board = genBoard(len(gameBoard), len(gameBoard[0]), num_mines)
+    new_seen = []
+
+    opened_cells = 0
+    for row in knownBoard:
+        for cell in row:
+            if cell is not None:
+                opened_cells += 1
+
+    positions = [(i, j) for i in range(len(new_known_board))
+                 for j in range(len(new_known_board[0])) if new_game_board[i][j] != 1]
+    shuffle(positions)
+
+    # Open the same number of cells in the new known board
+    for i in range(opened_cells):
+        if i >= len(positions):
+            break
+        x, y = positions[i]
+        new_known_board[x][y] = squareNum((x, y), new_game_board)
+        checkopencluster(new_known_board, new_game_board, new_seen)
+        positions.remove((x, y))
+
+    return new_known_board, new_game_board, new_seen
+
+
 # In minesweeper, when the player clicks a square with number 0, all surrouding squares are cleared automatically
 # This function does that.
+
 
 def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
     clock = p.time.Clock()
@@ -126,9 +154,10 @@ def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
                 elif prob == 0.0 or prob2 == 0.0:  # Safe square
                     if knownBoard[y][x] is None:
                         knownBoard[y][x] = squareNum((y, x), gameBoard)
-                        opened_squares.append((y, x))  # Track squares we opened
+                        # Track squares we opened
+                        opened_squares.append((y, x))
         return opened_squares
-    
+
     def find_unexplored_cluster():
         """Identify a cluster of unexplored squares."""
         visited = set()
@@ -153,12 +182,14 @@ def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
         return max(clusters, key=len) if clusters else []
 
     # Initialization
-    probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+    probsBoard = calcprobs(knownBoard, num_mines -
+                           sum(row.count("🚩") for row in knownBoard))
     backtrack = 0
 
     while True:
         # Overlay results and open squares based on probabilities
-        probsBoard2 = calcprobs2(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+        probsBoard2 = calcprobs2(
+            knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
         opened_squares = overlay_probs(probsBoard, probsBoard2)
 
         # Expand clusters from opened squares
@@ -170,7 +201,8 @@ def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
 
         if min_square:
             y, x = min_square
-            print(f"Choosing square {min_square} with probability {min_prob:.2f}")
+            print(
+                f"Choosing square {min_square} with probability {min_prob:.2f}")
 
             if gameBoard[y][x] == 1:  # Backtrack condition
                 print(f"Backtrack {backtrack} at {min_square}")
@@ -181,13 +213,15 @@ def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
                 checkopencluster(knownBoard, gameBoard, seen)
 
                 # Update probabilities
-                probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+                probsBoard = calcprobs(
+                    knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
 
         else:
             print("No safe moves found. Exploring the largest unexplored cluster.")
             unexplored_cluster = find_unexplored_cluster()
             if unexplored_cluster:
-                y, x = unexplored_cluster[0]  # Select the first square in the largest cluster
+                # Select the first square in the largest cluster
+                y, x = unexplored_cluster[0]
                 print(f"Exploring random square {y, x}")
                 if gameBoard[y][x] == 1:  # Bomb hit
                     print(f"Backtrack {backtrack} at {y, x}")
@@ -196,25 +230,23 @@ def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
                 else:
                     knownBoard[y][x] = squareNum((y, x), gameBoard)
                     checkopencluster(knownBoard, gameBoard, seen)
-                probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+                probsBoard = calcprobs(
+                    knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
             else:
                 print("No unexplored regions left. Exiting autoclear.")
                 break
 
         # Update the display
         if screen:
-            drawBoard(screen, knownBoard, gameBoard, probsBoard, SQ_SIZE, False, True)
+            drawBoard(screen, knownBoard, gameBoard,
+                      probsBoard, SQ_SIZE, False, True)
             p.display.flip()
             clock.tick(FPS)
 
     print(f"Total backtracks: {backtrack}")
 
 
-
-
-
-
-def checkopencluster(knownBoard,gameBoard,seen):
+def checkopencluster(knownBoard, gameBoard, seen):
     count = None
     while count != 0:
         count = 0
@@ -272,7 +304,7 @@ def gen_groups(solution, parameters):
 # The function that returns a board with the probability of each border square having a mine
 def calcprobs(board, rem_mines):
     test = 1
-    if(test):
+    if (test):
         newboard = genKnownBoard(len(board), len(board[0]))
         test = 0
     else:
@@ -296,7 +328,8 @@ def calcprobs(board, rem_mines):
                             for x in none_sqrs
                             if newboard[x[0]][x[1]] == 1.0 or board[x[0]][x[1]] == "🚩"
                         ]
-                        sqrs0 = [x for x in none_sqrs if newboard[x[0]][x[1]] == 0.0]
+                        sqrs0 = [
+                            x for x in none_sqrs if newboard[x[0]][x[1]] == 0.0]
                         if len(none_sqrs) == cell:
                             for sqr in none_sqrs:
                                 newboard[sqr[0]][sqr[1]] = 1.0
@@ -419,7 +452,8 @@ def calcprobs(board, rem_mines):
         variables = sympy.symbols(symbolstr)
 
         # Solve the system
-        linsolve_result = sympy.linsolve(sympy.Matrix(equation_matrix), variables)
+        linsolve_result = sympy.linsolve(
+            sympy.Matrix(equation_matrix), variables)
 
         # Check if linsolve_result is empty
         if not linsolve_result:
@@ -427,8 +461,6 @@ def calcprobs(board, rem_mines):
             return newboard  # Return the current probability board as-is
 
         solution = linsolve_result.args[0]  # Extract the first solution tuple
-
-
 
         # Determines what are the parameters of the solution
         parameters = []
@@ -447,7 +479,8 @@ def calcprobs(board, rem_mines):
         eq_groups = []
         for i in range(len(groups) + 1):
             eq_groups.append([])
-        eq_groups_num = []  # This is the number of the group that each expression in the solution belongs
+        # This is the number of the group that each expression in the solution belongs
+        eq_groups_num = []
         for i, eq in enumerate(solution):
             num = None
             for j, group in enumerate(groups):
@@ -466,12 +499,16 @@ def calcprobs(board, rem_mines):
             eq_groups_num.append(num)
 
         # Filter out None values before sorting
-        filtered_pairs = [(group, sqr) for group, sqr in zip(eq_groups_num, border_sqrs) if group is not None]
-        filtered_solution = [sol for group, sol in zip(eq_groups_num, solution) if group is not None]
+        filtered_pairs = [(group, sqr) for group, sqr in zip(
+            eq_groups_num, border_sqrs) if group is not None]
+        filtered_solution = [sol for group, sol in zip(
+            eq_groups_num, solution) if group is not None]
 
         # Sort the filtered pairs and corresponding solution
-        border_sqrs = [x for _, x in sorted(filtered_pairs, key=lambda pair: pair[0])]
-        solution = [sol for _, sol in sorted(zip(eq_groups_num, filtered_solution), key=lambda pair: pair[0])]
+        border_sqrs = [x for _, x in sorted(
+            filtered_pairs, key=lambda pair: pair[0])]
+        solution = [sol for _, sol in sorted(
+            zip(eq_groups_num, filtered_solution), key=lambda pair: pair[0])]
 
         groups = (
             groups + [[]]
@@ -502,7 +539,8 @@ def calcprobs(board, rem_mines):
                     if cell == 1.0 and board[y][x] != "🚩":
                         alreadyFoundMines += 1
 
-            numberOfPossibilities = {}  # A dictionary to reuse some big values already calculated with comb()
+            # A dictionary to reuse some big values already calculated with comb()
+            numberOfPossibilities = {}
             problist = [0] * len(
                 border_sqrs
             )  # The probabilities of each respective border square having a mine
@@ -528,7 +566,8 @@ def calcprobs(board, rem_mines):
                 ):  # The number of mines in the current possible solution can't be bigger than the number of remaining mines
                     if val not in numberOfPossibilities:
                         numberOfPossibilities[val] = comb(
-                            len(unbordered_sqrs), rem_mines - val - alreadyFoundMines
+                            len(unbordered_sqrs), rem_mines -
+                            val - alreadyFoundMines
                         )
                     total += numberOfPossibilities[val]
                     unbordered_prob += rem_mines - val - alreadyFoundMines
@@ -538,7 +577,8 @@ def calcprobs(board, rem_mines):
 
             # Normalize probabilities after solving
             if total > 0:
-                problist = [x / total for x in problist]  # Normalize probabilities
+                # Normalize probabilities
+                problist = [x / total for x in problist]
             else:
                 problist = [0] * len(problist)  # No valid states
             if len(unbordered_sqrs) > 0:
@@ -548,7 +588,8 @@ def calcprobs(board, rem_mines):
             for i, sqr in enumerate(border_sqrs):
                 newboard[sqr[0]][sqr[1]] = problist[i]
             for i, sqr in enumerate(unbordered_sqrs):
-                newboard[sqr[0]][sqr[1]] = rem_mines / len(unbordered_sqrs)  # Uniform probability
+                newboard[sqr[0]][sqr[1]] = rem_mines / \
+                    len(unbordered_sqrs)  # Uniform probability
         else:
             # In case there were too many parameters, at least some squares are definitely mines because the
             # Iterate over the solution and check if it matches 0 or 1
@@ -565,14 +606,15 @@ def calcprobs(board, rem_mines):
 
 
 def calcprobs2(board, rem_mines):
-    newboard = genKnownBoard(len(board), len(board[0]))  # Initialize probability board with None
+    # Initialize probability board with None
+    newboard = genKnownBoard(len(board), len(board[0]))
     prev = None
 
     # Identify revealed cells to limit the scope of calculation
     revealed_cells = [
         (y, x) for y, row in enumerate(board) for x, cell in enumerate(row) if isinstance(cell, int)
     ]
-    
+
     # Focus only on cells surrounding the revealed cells
     def get_surrounding_revealed():
         focus_cells = set()
@@ -585,7 +627,7 @@ def calcprobs2(board, rem_mines):
     while prev != newboard:
         prev = deepcopy(newboard)
         focus_cells = get_surrounding_revealed()
-        
+
         for y, x in focus_cells:  # Iterate only over the cells of interest
             for ry, rx in surrounds((y, x), board):
                 cell = board[ry][rx]
@@ -612,11 +654,13 @@ def calcprobs2(board, rem_mines):
 
                     # Calculate probabilities for uncertain squares
                     else:
-                        mines_left = cell - len(sqrs100)  # Mines yet to be placed
+                        # Mines yet to be placed
+                        mines_left = cell - len(sqrs100)
                         if mines_left > 0 and len(none_sqrs) > 0:
                             prob = mines_left / len(none_sqrs)
                             for sqr in none_sqrs:
-                                if newboard[sqr[0]][sqr[1]] is None:  # Update only unset probabilities
+                                # Update only unset probabilities
+                                if newboard[sqr[0]][sqr[1]] is None:
                                     newboard[sqr[0]][sqr[1]] = prob
                                 else:
                                     # Average probability for overlapping regions
@@ -629,16 +673,18 @@ def calcprobs2(board, rem_mines):
         newboard[y][x]
         for y, row in enumerate(newboard)
         for x, cell in enumerate(row)
-        if isinstance(cell, float) and newboard[y][x] != 1.0  # Exclude definite bombs
+        # Exclude definite bombs
+        if isinstance(cell, float) and newboard[y][x] != 1.0
     )
 
-    if(rem_mines > 0):
+    if (rem_mines > 0):
         if total_prob > rem_mines:  # Normalize probabilities to match remaining mines
             scale_factor = rem_mines / total_prob
             for y, row in enumerate(newboard):
                 for x, cell in enumerate(row):
-                    if isinstance(cell, float) and newboard[y][x] != 1.0:  # Do not modify 1.0
-                        newboard[y][x] = round(min(1.0, newboard[y][x] * scale_factor), 2)
-
+                    # Do not modify 1.0
+                    if isinstance(cell, float) and newboard[y][x] != 1.0:
+                        newboard[y][x] = round(
+                            min(1.0, newboard[y][x] * scale_factor), 2)
 
     return newboard

@@ -5,6 +5,8 @@ import sys
 import time
 
 # Function to display a settings menu and gather user input
+
+
 def settings_menu():
     p.init()
     screen = p.display.set_mode((400, 300))
@@ -92,6 +94,7 @@ def settings_menu():
         p.display.flip()
         clock.tick(30)
 
+
 # Main program
 if __name__ == "__main__":
     p.init()
@@ -108,13 +111,16 @@ if __name__ == "__main__":
         seen = []
         lost = False
         display = False
+        interval = 5
+        click = 0
 
         screen = p.display.set_mode((width * SQ_SIZE, height * SQ_SIZE))
         clock = p.time.Clock()
 
         # Main game loop
         while not lost:
-            drawBoard(screen, knownBoard, gameBoard, probsBoard, SQ_SIZE, lost, display)
+            drawBoard(screen, knownBoard, gameBoard,
+                      probsBoard, SQ_SIZE, lost, display)
             clock.tick(30)
             p.display.flip()
 
@@ -125,7 +131,8 @@ if __name__ == "__main__":
 
                 if e.type == p.KEYDOWN and e.key == p.K_c:
                     print("Auto-clearing the board using probabilities...")
-                    autoclear(knownBoard, gameBoard, seen, num_mines, screen, SQ_SIZE)
+                    autoclear(knownBoard, gameBoard, seen,
+                              num_mines, screen, SQ_SIZE)
                     display = True  # Ensure probabilities are updated
 
                 if e.type == p.MOUSEBUTTONDOWN and not lost:
@@ -136,13 +143,16 @@ if __name__ == "__main__":
                     if e.button == 1:  # Left click
                         if gameBoard[row][col] == 1:  # Mine clicked
                             print("It was a mine! Game Over!")
-                            drawBoard(screen, knownBoard, gameBoard, probsBoard, SQ_SIZE, True, display)
+                            drawBoard(screen, knownBoard, gameBoard,
+                                      probsBoard, SQ_SIZE, True, display)
                             p.display.flip()
-                            time.sleep(2) 
+                            time.sleep(2)
                             lost = True  # Exit the game loop
                         else:  # Safe square
-                            knownBoard[row][col] = squareNum((row, col), gameBoard)
+                            knownBoard[row][col] = squareNum(
+                                (row, col), gameBoard)
                             checkopencluster(knownBoard, gameBoard, seen)
+                            click += 1
 
                     elif e.button == 3:  # Right click for flags
                         if knownBoard[row][col] is None:
@@ -154,3 +164,10 @@ if __name__ == "__main__":
 
                     probsBoard = calcprobs(knownBoard, num_mines - num_flags)
                     display = True
+
+            if click == interval:
+                num_flags = 0
+                knownBoard, gameBoard, seen = randomizeBoard(
+                    knownBoard, gameBoard, seen, num_mines)
+                probsBoard = calcprobs(knownBoard, num_mines)
+                click = 0
