@@ -534,6 +534,7 @@ def calcprobs(board, rem_mines):
         print("Creating alleq_groups")
         start_time = time.time()  # Start the timer
 
+        sum_local_solution = 0
         groups = (
             groups + [[]]
         )  # Adds an additional group that contains the parameters for the expressions that only have constants, which is an empty group
@@ -541,6 +542,7 @@ def calcprobs(board, rem_mines):
         for i, eqgroup in enumerate(eq_groups):
             f = sympy.lambdify(groups[i], eqgroup)
             local_possible_solutions = []
+            itr = 0
             for possibility in product([0, 1], repeat=len(groups[i])):
                 localsolution = f(*possibility)
                 valid = True
@@ -551,11 +553,12 @@ def calcprobs(board, rem_mines):
                         break
                 if valid:
                     local_possible_solutions.append(localsolution)
-                if len(alleq_groups) > 1000000:
+                if sum_local_solution > 150:
                     break
-                if len(local_possible_solutions) > 100:
+                itr += 1
+                if itr > 100000:
                     break
-            print(len(local_possible_solutions))
+            sum_local_solution += len(local_possible_solutions)
             alleq_groups.append(local_possible_solutions)
             if i > 20:
                 break
@@ -563,6 +566,8 @@ def calcprobs(board, rem_mines):
 
         end_time = time.time()  # End the timer
         print(f"Time taken to create alleq_groups: {end_time - start_time} seconds")
+        print(f"Total number of possible solutions: {sum_local_solution}")
+        print(f"Alleq groups: {len(alleq_groups)}")
         print(len(alleq_groups))
 
         # It doesn't continue if there are too many parameters, because it could take a lot of time
@@ -617,7 +622,7 @@ def calcprobs(board, rem_mines):
                 problist = [x / total for x in problist]
             else:
                 problist = [0] * len(problist)  # No valid states
-            if len(unbordered_sqrs) > 0:
+            if len(unbordered_sqrs) > 0 and num_possibilities > 0:
                 unbordered_prob /= num_possibilities * len(unbordered_sqrs)
 
             # Assign probabilities to newboard

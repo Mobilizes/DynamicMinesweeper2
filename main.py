@@ -111,7 +111,7 @@ if __name__ == "__main__":
         seen = []
         lost = False
         display = False
-        interval = 10
+        interval = 5
         click = 0
 
         screen = p.display.set_mode((width * SQ_SIZE, height * SQ_SIZE))
