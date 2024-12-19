@@ -14,9 +14,9 @@ def settings_menu():
 
     font = p.font.Font(None, 32)
     input_boxes = [
-        {"label": "Height", "value": "25", "rect": p.Rect(100, 50, 200, 32)},
-        {"label": "Width", "value": "25", "rect": p.Rect(100, 100, 200, 32)},
-        {"label": "Mines", "value": "200", "rect": p.Rect(100, 150, 200, 32)},
+        {"label": "Height", "value": "16", "rect": p.Rect(100, 50, 200, 32)},
+        {"label": "Width", "value": "30", "rect": p.Rect(100, 100, 200, 32)},
+        {"label": "Mines", "value": "99", "rect": p.Rect(100, 150, 200, 32)},
     ]
 
     current_box = 0
@@ -111,7 +111,7 @@ if __name__ == "__main__":
         seen = []
         lost = False
         display = False
-        interval = 5
+        interval = 10
         click = 0
 
         screen = p.display.set_mode((width * SQ_SIZE, height * SQ_SIZE))
@@ -121,7 +121,7 @@ if __name__ == "__main__":
         while not lost:
             drawBoard(screen, knownBoard, gameBoard,
                       probsBoard, SQ_SIZE, lost, display)
-            clock.tick(30)
+            clock.tick(MAX_FPS)
             p.display.flip()
 
             for e in p.event.get():
@@ -131,8 +131,8 @@ if __name__ == "__main__":
 
                 if e.type == p.KEYDOWN and e.key == p.K_c:
                     print("Auto-clearing the board using probabilities...")
-                    autoclear(knownBoard, gameBoard, seen,
-                              num_mines, screen, SQ_SIZE)
+                    knownBoard, gameBoard, seen = autoclear(knownBoard, gameBoard, seen,
+                              num_mines, interval, click, screen, SQ_SIZE)
                     display = True  # Ensure probabilities are updated
 
                 if e.type == p.MOUSEBUTTONDOWN and not lost:
