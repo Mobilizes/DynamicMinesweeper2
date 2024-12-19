@@ -12,9 +12,9 @@ def settings_menu():
 
     font = p.font.Font(None, 32)
     input_boxes = [
-        {"label": "Height", "value": "20", "rect": p.Rect(100, 50, 200, 32)},
-        {"label": "Width", "value": "20", "rect": p.Rect(100, 100, 200, 32)},
-        {"label": "Mines", "value": "150", "rect": p.Rect(100, 150, 200, 32)},
+        {"label": "Height", "value": "25", "rect": p.Rect(100, 50, 200, 32)},
+        {"label": "Width", "value": "25", "rect": p.Rect(100, 100, 200, 32)},
+        {"label": "Mines", "value": "200", "rect": p.Rect(100, 150, 200, 32)},
     ]
 
     current_box = 0

@@ -87,7 +87,7 @@ def squareNum(coords, board):
 
 def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
     clock = p.time.Clock()
-    FPS = 30  # Control the frame rate for smoother execution
+    FPS = 30
 
     def in_3x3_around_known(y, x):
         """Check if a square (y, x) is in a 3x3 region around any revealed square."""
@@ -113,61 +113,102 @@ def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
                     min_square = (y, x)
         return min_square, min_prob
 
-    def overlay_probs(probsBoard, probsBoard2, definite_bombs):
-        """Overlay probabilities, prioritizing calcprobs results."""
+    def overlay_probs(probsBoard, probsBoard2):
+        """Overlay probabilities using calcprobs and calcprobs2, prioritizing bombs."""
+        opened_squares = []
         for y, row in enumerate(probsBoard):
             for x, prob in enumerate(row):
-                if (y, x) in definite_bombs:
-                    probsBoard[y][x] = 1.0
-                elif prob is not None and probsBoard2[y][x] is not None:
-                    probsBoard[y][x] = max(prob, probsBoard2[y][x])
-                elif probsBoard2[y][x] is not None:
-                    probsBoard[y][x] = probsBoard2[y][x]
-        return probsBoard
+                prob2 = probsBoard2[y][x]
+                if prob == 1.0:  # Definitive bomb from calcprobs
+                    knownBoard[y][x] = "🚩"
+                elif prob2 == 1.0:  # Bomb from calcprobs2
+                    knownBoard[y][x] = "🚩"
+                elif prob == 0.0 or prob2 == 0.0:  # Safe square
+                    if knownBoard[y][x] is None:
+                        knownBoard[y][x] = squareNum((y, x), gameBoard)
+                        opened_squares.append((y, x))  # Track squares we opened
+        return opened_squares
+    
+    def find_unexplored_cluster():
+        """Identify a cluster of unexplored squares."""
+        visited = set()
+        clusters = []
+
+        def dfs(y, x, cluster):
+            if (y, x) in visited or knownBoard[y][x] is not None:
+                return
+            visited.add((y, x))
+            cluster.append((y, x))
+            for ny, nx in surrounds((y, x), knownBoard):
+                dfs(ny, nx, cluster)
+
+        for y, row in enumerate(knownBoard):
+            for x, cell in enumerate(row):
+                if cell is None and (y, x) not in visited:
+                    cluster = []
+                    dfs(y, x, cluster)
+                    if cluster:
+                        clusters.append(cluster)
+
+        return max(clusters, key=len) if clusters else []
 
     # Initialization
     probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
-    definite_bombs = {(y, x) for y, row in enumerate(probsBoard) for x, val in enumerate(row) if val == 1.0}
-    backtrack = 0  # Counter for backtracks
+    backtrack = 0
 
     while True:
+        # Overlay results and open squares based on probabilities
+        probsBoard2 = calcprobs2(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+        opened_squares = overlay_probs(probsBoard, probsBoard2)
+
+        # Expand clusters from opened squares
+        for y, x in opened_squares:
+            checkopencluster(knownBoard, gameBoard, seen)
+
+        # Find the safest square
         min_square, min_prob = get_safest_square(probsBoard)
 
         if min_square:
             y, x = min_square
             print(f"Choosing square {min_square} with probability {min_prob:.2f}")
 
-            if min_prob == 1.0:  # Definite mine
+            if gameBoard[y][x] == 1:  # Backtrack condition
+                print(f"Backtrack {backtrack} at {min_square}")
+                backtrack += 1
                 knownBoard[y][x] = "🚩"
-                definite_bombs.add((y, x))  # Add to definite bomb set
-            else:
-                if gameBoard[y][x] == 1:  # Backtrack condition
-                    print(f"Backtrack at {min_square}")
+                probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+            else:  # Safe square
+                knownBoard[y][x] = squareNum((y, x), gameBoard)
+                checkopencluster(knownBoard, gameBoard, seen)
+
+                # Update probabilities
+                probsBoard = calcprobs2(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+
+        else:
+            print("No safe moves found. Exploring the largest unexplored cluster.")
+            unexplored_cluster = find_unexplored_cluster()
+            if unexplored_cluster:
+                y, x = unexplored_cluster[0]  # Select the first square in the largest cluster
+                print(f"Exploring random square {y, x}")
+                if gameBoard[y][x] == 1:  # Bomb hit
+                    print(f"Backtrack {backtrack} at {y, x}")
                     backtrack += 1
                     knownBoard[y][x] = "🚩"
-
-                    # Recalculate probabilities TWICE for accuracy
-                    probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
-                    probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
-                    definite_bombs = {(y, x) for y, row in enumerate(probsBoard) for x, val in enumerate(row) if val == 1.0}
-
-                else:  # Safe square
+                else:
                     knownBoard[y][x] = squareNum((y, x), gameBoard)
                     checkopencluster(knownBoard, gameBoard, seen)
+                probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+            else:
+                print("No unexplored regions left. Exiting autoclear.")
+                break
 
-                    # Combine calcprobs and calcprobs2 for efficiency
-                    probsBoard2 = calcprobs2(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
-                    probsBoard = overlay_probs(probsBoard, probsBoard2, definite_bombs)
+        # Update the display
+        if screen:
+            drawBoard(screen, knownBoard, gameBoard, probsBoard, SQ_SIZE, False, True)
+            p.display.flip()
+            clock.tick(FPS)
 
-            # Update the display
-            if screen:
-                drawBoard(screen, knownBoard, gameBoard, probsBoard, SQ_SIZE, False, True)
-                p.display.flip()
-                clock.tick(FPS)
-        else:
-            print("No safe moves left. Exiting autoclear.\n")
-            print(f"Total backtracks = {backtrack}")
-            break
+    print(f"Total backtracks: {backtrack}")
 
 
 
@@ -376,14 +417,19 @@ def calcprobs(board, rem_mines):
         # Solve the system
         linsolve_result = sympy.linsolve(sympy.Matrix(equation_matrix), variables)
 
+        # Check if linsolve_result is empty
+        if not linsolve_result:
+            print("No solutions found for the linear system. Returning early.")
+            return newboard  # Return the current probability board as-is
 
         solution = linsolve_result.args[0]  # Extract the first solution tuple
+
 
 
         # Determines what are the parameters of the solution
         parameters = []
         for i in range(len(border_sqrs)):
-            if solution.args[i] == variables[i]:
+            if isinstance(solution.args[i], sympy.Basic) and solution.args[i] == variables[i]:
                 parameters.append(variables[i])
         print("Number of parameters", len(parameters))
 
@@ -501,11 +547,12 @@ def calcprobs(board, rem_mines):
                 newboard[sqr[0]][sqr[1]] = rem_mines / len(unbordered_sqrs)  # Uniform probability
         else:
             # In case there were too many parameters, at least some squares are definitely mines because the
-            # solution of the linear system gave that they are constants 1 or 0
-            for i in range(len(border_sqrs)):
-                if solution.args[i] == sympy.core.numbers.Zero:
+            # Iterate over the solution and check if it matches 0 or 1
+            # Terganti
+            for i, sol in enumerate(solution):
+                if sol == 0:  # Definite safe square
                     newboard[border_sqrs[i][0]][border_sqrs[i][1]] = 0.0
-                elif solution.args[i] == sympy.core.numbers.One:
+                elif sol == 1:  # Definite bomb square
                     newboard[border_sqrs[i][0]][border_sqrs[i][1]] = 1.0
             print(
                 "The probability calculations were not completed because there were too many parameters"
@@ -583,12 +630,13 @@ def calcprobs2(board, rem_mines):
         if isinstance(cell, float) and newboard[y][x] != 1.0  # Exclude definite bombs
     )
 
-    if total_prob > rem_mines:  # Normalize probabilities to match remaining mines
-        scale_factor = rem_mines / total_prob
-        for y, row in enumerate(newboard):
-            for x, cell in enumerate(row):
-                if isinstance(cell, float) and newboard[y][x] != 1.0:  # Do not modify 1.0
-                    newboard[y][x] = round(min(1.0, newboard[y][x] * scale_factor), 2)
+    if(rem_mines > 0):
+        if total_prob > rem_mines:  # Normalize probabilities to match remaining mines
+            scale_factor = rem_mines / total_prob
+            for y, row in enumerate(newboard):
+                for x, cell in enumerate(row):
+                    if isinstance(cell, float) and newboard[y][x] != 1.0:  # Do not modify 1.0
+                        newboard[y][x] = round(min(1.0, newboard[y][x] * scale_factor), 2)
 
 
     return newboard
