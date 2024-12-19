@@ -176,13 +176,12 @@ def autoclear(knownBoard, gameBoard, seen, num_mines, screen=None, SQ_SIZE=40):
                 print(f"Backtrack {backtrack} at {min_square}")
                 backtrack += 1
                 knownBoard[y][x] = "🚩"
-                probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
             else:  # Safe square
                 knownBoard[y][x] = squareNum((y, x), gameBoard)
                 checkopencluster(knownBoard, gameBoard, seen)
 
                 # Update probabilities
-                probsBoard = calcprobs2(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
+                probsBoard = calcprobs(knownBoard, num_mines - sum(row.count("🚩") for row in knownBoard))
 
         else:
             print("No safe moves found. Exploring the largest unexplored cluster.")
@@ -272,7 +271,12 @@ def gen_groups(solution, parameters):
 
 # The function that returns a board with the probability of each border square having a mine
 def calcprobs(board, rem_mines):
-    newboard = genKnownBoard(len(board), len(board[0]))
+    test = 1
+    if(test):
+        newboard = genKnownBoard(len(board), len(board[0]))
+        test = 0
+    else:
+        newboard = calcprobs2(len(board), len(board[0]))
     prev = None
     # Basic rules (For example, "if the number of unknown surrounding squares is equal to the number of the square, then all of them have mines")
     while prev != newboard:
@@ -490,7 +494,7 @@ def calcprobs(board, rem_mines):
 
         # It doesn't continue if there are too many parameters, because it could take a lot of time
         # The number of maximum parameters can be changing depending on the speed of the computer
-        if len(parameters) < 35:
+        if len(parameters) < 22:
             # The number of mines that already have been found by the previous two methods
             alreadyFoundMines = 0
             for y, row in enumerate(newboard):
@@ -554,9 +558,7 @@ def calcprobs(board, rem_mines):
                     newboard[border_sqrs[i][0]][border_sqrs[i][1]] = 0.0
                 elif sol == 1:  # Definite bomb square
                     newboard[border_sqrs[i][0]][border_sqrs[i][1]] = 1.0
-            print(
-                "The probability calculations were not completed because there were too many parameters"
-            )
+            return calcprobs2(board, rem_mines)
     else:
         print("The linear system method wasn't needed")
     return newboard
