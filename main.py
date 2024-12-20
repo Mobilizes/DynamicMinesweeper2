@@ -9,7 +9,7 @@ import time
 
 def settings_menu():
     p.init()
-    screen = p.display.set_mode((400, 300))
+    screen = p.display.set_mode((400, 350))
     p.display.set_caption("Minesweeper")
 
     font = p.font.Font(None, 32)
@@ -17,11 +17,14 @@ def settings_menu():
         {"label": "Height", "value": "16", "rect": p.Rect(100, 50, 200, 32)},
         {"label": "Width", "value": "30", "rect": p.Rect(100, 100, 200, 32)},
         {"label": "Mines", "value": "99", "rect": p.Rect(100, 150, 200, 32)},
+        {"label": "Interval", "value": "5", "rect": p.Rect(100, 200, 200, 32)},
     ]
 
     current_box = 0
     active = [False] * len(input_boxes)
     active[current_box] = True
+
+    error_message = ""
 
     clock = p.time.Clock()
     while True:
@@ -58,13 +61,12 @@ def settings_menu():
             screen.blit(label, (20, box["rect"].y + 5))
 
         # Start button
-        start_button = p.Rect(150, 220, 100, 40)
+        start_button = p.Rect(150, 270, 100, 40)
         p.draw.rect(screen, (100, 200, 100), start_button)
         start_text = font.render("Start", True, (255, 255, 255))
-        screen.blit(start_text, (170, 225))
+        screen.blit(start_text, (170, 280))
 
         # Error message for invalid inputs
-        error_message = ""
 
         # Check for start button click
         if event.type == p.MOUSEBUTTONDOWN and start_button.collidepoint(event.pos):
@@ -72,6 +74,7 @@ def settings_menu():
                 height = int(input_boxes[0]["value"])
                 width = int(input_boxes[1]["value"])
                 mines = int(input_boxes[2]["value"])
+                interval = int(input_boxes[3]["value"])
 
                 # Validate height, width, and mines
                 min_bombs = min(height, width) * 2
@@ -81,15 +84,17 @@ def settings_menu():
                     error_message = "Height/Width must be between 1 and 100!"
                 elif not (min_bombs <= mines <= max_bombs):
                     error_message = f"Mines must be between {min_bombs} and {max_bombs}!"
+                elif not (2 <= interval):
+                    error_message = "Interval must be above 1!"
                 else:
-                    return height, width, mines  # Valid input, start the game
+                    return height, width, mines, interval  # Valid input, start the game
             except ValueError:
                 error_message = "Please enter valid numbers!"
 
         # Display error message if invalid
         if error_message:
             error_surface = font.render(error_message, True, (255, 0, 0))
-            screen.blit(error_surface, (50, 260))
+            screen.blit(error_surface, (50, 240))
 
         p.display.flip()
         clock.tick(30)
@@ -100,7 +105,7 @@ if __name__ == "__main__":
     p.init()
 
     while True:  # Game loop to return to settings after losing
-        height, width, num_mines = settings_menu()  # Show settings menu
+        height, width, num_mines, interval = settings_menu()  # Show settings menu
 
         # Initialize game window after settings
         SQ_SIZE = 40
@@ -111,7 +116,6 @@ if __name__ == "__main__":
         seen = []
         lost = False
         display = False
-        interval = 5
         click = 0
 
         screen = p.display.set_mode((width * SQ_SIZE, height * SQ_SIZE))

@@ -12,7 +12,7 @@ for i in range(9):
     numbers[i] = p.image.load(path+f'images/type{i}.png')
 
 
-MAX_FPS = 10
+MAX_FPS = 30
 
 
 def dimension(grid):

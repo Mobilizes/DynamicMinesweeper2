@@ -115,7 +115,7 @@ def randomizeBoard(knownBoard, gameBoard, seen, num_mines):
 
 def autoclear(knownBoard, gameBoard, seen, num_mines, interval, click, screen=None, SQ_SIZE=40):
     clock = p.time.Clock()
-    FPS = 10
+    FPS = 2
 
     def in_3x3_around_known(y, x):
         """Check if a square (y, x) is in a 3x3 region around any revealed square."""
